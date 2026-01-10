@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+import os
+import sys
+import shutil
+import hashlib
+import re
+import subprocess
+import tempfile
+from pathlib import Path
+
+class AppImageBackend:
+    def __init__(self):
+        self.opt_dir = Path("/opt/appimages-installed")
+        self.apps_dir = Path("/usr/share/applications")
+        self.icons_dir = Path("/usr/share/icons/hicolor/128x128/apps")
+        self.dpkg_status = Path("/var/lib/dpkg/status")
+        self.dpkg_info = Path("/var/lib/dpkg/info")
+
+    def _sanitize(self, name: str) -> str:
+        name = Path(name).stem.replace(
+            ".AppImage", "").replace("-x86_64", "").split("-")[0]
+        
+        replacements = {'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a', 'é': 'e',
+                        'ê': 'e', 'í': 'i', 'ó': 'o', 'õ': 'o', 'ô': 'o', 'ú': 'u', 'ç': 'c'}
+        
+        for char, rep in replacements.items():
+            name = name.replace(char, rep)
+        
+        name = name.strip().replace(" ", "-").lower()
+        return re.sub(r'[^a-z0-9.-]', '', name)
+
+    def install(self, appimage_path: str):
+        path = Path(appimage_path).resolve()
+        if not path.exists():
+            print(f"Erro: {path} não encontrado.")
+            sys.exit(1)
+
+        path.chmod(path.stat().st_mode | 0o111)
+
+        with tempfile.TemporaryDirectory(prefix="ai_install_") as tmp:
+            working_dir = Path(tmp)
+            
+            print(f"Extraindo {path.name}...")
+            
+            try:
+                subprocess.run(
+                    [str(path), "--appimage-extract"],
+                    cwd=working_dir,
+                    capture_output=True,
+                    check=True,
+                    timeout=30
+                )
+            except subprocess.CalledProcessError as e:
+                print(f"Erro ao extrair AppImage: {e}")
+                sys.exit(1)
+
+            extract_path = working_dir / "squashfs-root"
+            
+            desktop_file = next(extract_path.glob("*.desktop"), None)
+            if not desktop_file:
+                print("Erro: Arquivo .desktop não encontrado dentro do AppImage.")
+                sys.exit(1)
+
+            content = desktop_file.read_text(errors="ignore")
+            app_name = (re.search(r'^Name=(.*)', content, re.M) or [None, "App"])[1].strip()
+            pkg_name = self._sanitize(appimage_path) + "appimage"
+            file_hash = hashlib.md5(path.read_bytes()).hexdigest()
+            
+            for d in [self.opt_dir, self.apps_dir, self.icons_dir, self.dpkg_info]:
+                d.mkdir(parents=True, exist_ok=True)
+
+            dest_bin = self.opt_dir / file_hash
+            shutil.copy2(path, dest_bin)
+            dest_bin.chmod(0o755)
+
+            icon_src = extract_path / ".DirIcon"
+            if icon_src.exists():
+                shutil.copy2(icon_src, self.icons_dir / f"{pkg_name}.png")
+                shutil.copy2(icon_src, Path("/usr/share/pixmaps") / f"{pkg_name}.png")
+
+            new_content = []
+            for line in content.splitlines():
+                if line.startswith("Exec="):
+                    new_content.append(f"Exec={dest_bin}")
+                elif line.startswith("Icon="):
+                    new_content.append(f"Icon={pkg_name}")
+                elif line.startswith("TryExec="):
+                    continue
+                else:
+                    new_content.append(line)
+            
+            (self.apps_dir / f"{pkg_name}.desktop").write_text("\n".join(new_content))
+
+            self._register_in_dpkg(pkg_name, app_name, file_hash, dest_bin)
+
+            print(f"Sucesso: {app_name} instalado via AppImage com o package ${pkg_name}.")
+
+    def _register_in_dpkg(self, pkg_name, app_name, file_hash, dest_bin):
+        (self.dpkg_info / f"{pkg_name}.list").write_text(f"{dest_bin}\n{self.apps_dir}/{pkg_name}.desktop\n")
+        
+        status_text = self.dpkg_status.read_text()
+        if f"Package: {pkg_name}" not in status_text:
+            with open(self.dpkg_status, "a") as f:
+                f.write(f"\nPackage: {pkg_name}\n"
+                        f"Status: install ok installed\n"
+                        f"Architecture: amd64\n"
+                        f"Version: 1.0-{file_hash[:6]}\n"
+                        f"Maintainer: AppImageManager\n"
+                        f"Description: {app_name} via AppImage\n")
+
+    def uninstall(self, pkg_name: str):
+        pkg_name = self._sanitize(pkg_name)
+        if not pkg_name.endswith("appimage"):
+            pkg_name += "appimage"
+            
+        subprocess.run(["dpkg", "-r", pkg_name])
+        subprocess.run(["update-desktop-database"])
+        
+        print(f"Sucesso: {pkg_name} removido.")
+
+if __name__ == "__main__":
+    if os.getuid() != 0:
+        print("Erro: Este script deve ser executado como root.")
+        sys.exit(1)
+
+    backend = AppImageBackend()
+    if len(sys.argv) < 3: sys.exit(1)
+    
+    if sys.argv[1] == "-i": backend.install(sys.argv[-1])
+    elif sys.argv[1] == "-r": backend.uninstall(sys.argv[-1])

@@ -1,5 +1,5 @@
-# Flatpak Manager GUI (Qt 6) do Aratie OS
-Este projeto é uma interface gráfica moderna e leve para a instalação e gerenciamento de pacotes Flatpak, desenvolvida para o Aratie OS. Ele substitui a implementação anterior baseada em Shell Script e YA.
+# Pkg Manager GUI (Qt 6) do Aratie OS
+Este projeto é uma interface gráfica moderna e leve para a instalação e gerenciamento de pacotes Pkg, desenvolvida para o Aratie OS. Ele substitui a implementação anterior baseada em Shell Script e YA.
 
 ## 🚀 Funcionalidades
 Instalação Simplificada: Interface intuitiva com barras de progresso em tempo real para o pacote atual e o progresso geral.
@@ -8,7 +8,7 @@ Detecção de Estado: Verifica automaticamente se um aplicativo já está instal
 
 Gestão de Remoção: Oferece a opção de desinstalação caso o usuário tente "instalar" um pacote já presente no sistema.
 
-Parsing Inteligente: Monitora a saída do Flatpak via QProcess para exibir porcentagens precisas.
+Parsing Inteligente: Monitora a saída do Pkg via QProcess para exibir porcentagens precisas.
 
 Portable ELF: Gera um binário executável único que não depende da instalação manual de bibliotecas Python no sistema alvo.
 
@@ -23,14 +23,14 @@ Configuração: Python-dotenv
 
 Build: PyInstaller
 
-Gerenciamento de Pacotes: Flatpak CLI
+Gerenciamento de Pacotes: Pkg CLI
 
 ## 🔗 Como Usar
 
 1. Clone o projeto
 ```bash
-git clone https://github.com/aratie-os/flatpak-manager-gui
-cd flatpak-manager-gui
+git clone https://github.com/aratie-os/pkg-manager-gui
+cd pkg-manager-gui
 ```
 
 2. Instale as depenências
@@ -44,10 +44,10 @@ pip install -r requirements.txt
 Crie um arquivo .env na raiz do projeto:
 
 ```env
-APP_NAME=flatpak-manager-gui
+APP_NAME=pkg-manager-gui
 VERSION=26.01.03
 MAINTAINER=Seu Nome <email@provedor.com>
-DESCRIPTION=Manager GUI para Flatpak do Aratie OS
+DESCRIPTION=Manager GUI para Pkg do Aratie OS
 ```
 
 ## 🏗️ Build e Empacotamento
@@ -59,11 +59,12 @@ python3 build.py
 O binário será gerado na pasta dist/ junto com pacote .deb instalável na raiz do projeto como 
 
 ## 📝 Como usar via linha de comando
-A aplicação aceita o caminho de um arquivo .flatpak ou a URL de um .flatpakref:
+A aplicação aceita o caminho de um arquivo flatpak, ou, de um appimage:
 
 ```bash
 # O sistema detectará automaticamente se deve instalar ou remover.
-flatpak-manager-gui /caminho/para/aplicativo.flatpak
+pkg-manager-gui /caminho/para/aplicativo.flatpakref 
+pkg-manager-gui /caminho/para/aplicativo.appimage 
 ```
 ### 🤝 Contribuição
 Faça um Fork do projeto.

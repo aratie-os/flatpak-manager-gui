@@ -1,7 +1,6 @@
 import sys
 from PySide6.QtWidgets import (QApplication)
-
-from ui.flatpak_manager import FlatpakManager
+from factory.ui_factory import BuildUi
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -9,6 +8,6 @@ if __name__ == "__main__":
         print("Uso: flatpak-manager-gui <url/arquivo>")
         sys.exit(1)
 
-    window = FlatpakManager(sys.argv[1])
+    window = BuildUi.AutoInferPkg(sys.argv[1])
     window.show()
     sys.exit(app.exec())

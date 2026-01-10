@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=PKG Manager
+GenericName=Instalador de Pacotes
+Comment=Gerencie e instale aplicativos Flatpak e AppImage
+
+Exec=/usr/bin/pkg-manager-gui %f
+Icon=system-software-install
+
+Type=Application
+Terminal=false
+StartupNotify=true
+Categories=System;
+MimeType=application/vnd.appimage;application/x-iso9660-appimage;application/vnd.flatpak;application/vnd.flatpak.repo;application/vnd.flatpak.ref;
+StartupWMClass=pkg-manager-gui
